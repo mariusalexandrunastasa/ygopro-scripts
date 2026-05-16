@@ -127,17 +127,13 @@ function c10000020.get_hierarchy(c)
     return 0 -- Everything else
 end
 
--- Checks if the monster is physically able to declare an attack
+-- Checks if the monster is physically able to declare an attack.
+-- "While this card can attack" in the card text refers to Slifer's attack-readiness,
+-- not a turn or phase restriction -- the second mouth fires on the opponent's turn too.
 function c10000020.can_attack(c)
-	local tp=c:GetControler()
-	-- Must be the controller's turn
-	if Duel.GetTurnPlayer()~=tp then return false end
-	-- Must be Main Phase 1, Main Phase 2, or during the Battle Phase
-	local ph=Duel.GetCurrentPhase()
-	local is_phase = (ph==PHASE_MAIN1 or ph==PHASE_MAIN2 or (ph>=PHASE_BATTLE_START and ph<=PHASE_BATTLE))
-	if not is_phase then return false end
-	-- Must be face-up attack position and physically capable of attacking
-	return c:IsFaceup() and c:IsAttackPos() and not c:IsHasEffect(EFFECT_CANNOT_ATTACK) and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
+	return c:IsFaceup() and c:IsAttackPos()
+		and not c:IsHasEffect(EFFECT_CANNOT_ATTACK)
+		and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
 end
 
 function c10000020.sumlimit(e,c)
@@ -271,21 +267,23 @@ function c10000020.atkop(e,tp,eg,ep,ev,re,r,rp)
 
 	while tc do
 		if tc:IsPosition(POS_FACEUP_ATTACK) then
+			local preatk=tc:GetAttack()
 			local e1=Effect.CreateEffect(c)
 			e1:SetType(EFFECT_TYPE_SINGLE)
 			e1:SetCode(EFFECT_UPDATE_ATTACK)
 			e1:SetValue(-2000)
 			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 			tc:RegisterEffect(e1)
-			if tc:GetAttack()==0 then dg:AddCard(tc) end
+			if preatk~=0 and tc:GetAttack()==0 then dg:AddCard(tc) end
 		elseif tc:IsPosition(POS_FACEUP_DEFENSE) then
+			local predef=tc:GetDefense()
 			local e1=Effect.CreateEffect(c)
 			e1:SetType(EFFECT_TYPE_SINGLE)
 			e1:SetCode(EFFECT_UPDATE_DEFENSE)
 			e1:SetValue(-2000)
 			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 			tc:RegisterEffect(e1)
-			if tc:GetDefense()==0 then dg:AddCard(tc) end
+			if predef~=0 and tc:GetDefense()==0 then dg:AddCard(tc) end
 		end
 		tc=g:GetNext()
 	end
