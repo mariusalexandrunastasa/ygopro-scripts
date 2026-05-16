@@ -1,238 +1,270 @@
---オシリスの天空竜 Slifer the Sky Dragon
+-- Slifer the Sky Dragon
 function c10000020.initial_effect(c)
-	c:SetUniqueOnField(1,0,10000020)
-	--Summon with 3 Tribute
+	-- Requires 3 Tributes to Normal Summon/Set
 	local e1=Effect.CreateEffect(c)
-	e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
 	e1:SetType(EFFECT_TYPE_SINGLE)
 	e1:SetCode(EFFECT_LIMIT_SUMMON_PROC)
-	e1:SetCondition(c10000020.sumoncon)
-	e1:SetOperation(c10000020.sumonop)
+	e1:SetCondition(c10000020.sumcon)
+	e1:SetOperation(c10000020.sumop)
 	e1:SetValue(SUMMON_TYPE_ADVANCE)
 	c:RegisterEffect(e1)
 	local e2=Effect.CreateEffect(c)
 	e2:SetType(EFFECT_TYPE_SINGLE)
 	e2:SetCode(EFFECT_LIMIT_SET_PROC)
-	e2:SetCondition(c10000020.setcon)
+	e2:SetCondition(c10000020.sumcon)
+	e2:SetOperation(c10000020.sumop)
 	c:RegisterEffect(e2)
-	--Summon Cannot be Negated
+
+	-- Your opponent cannot Tribute this card
 	local e3=Effect.CreateEffect(c)
 	e3:SetType(EFFECT_TYPE_SINGLE)
-	e3:SetCode(EFFECT_CANNOT_DISABLE_SUMMON)
-	e3:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
+	e3:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e3:SetRange(LOCATION_MZONE)
+	e3:SetCode(EFFECT_UNRELEASABLE_SUM)
+	e3:SetValue(c10000020.recon)
 	c:RegisterEffect(e3)
-	--summon success
-	local e4=Effect.CreateEffect(c)
-	e4:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-	e4:SetCode(EVENT_SUMMON_SUCCESS)
-	e4:SetOperation(c10000020.sumsuc)
+	local e4=e3:Clone()
+	e4:SetCode(EFFECT_UNRELEASABLE_NONSUM)
 	c:RegisterEffect(e4)
-	--control
+
+	-- Control of this card cannot switch
 	local e5=Effect.CreateEffect(c)
 	e5:SetType(EFFECT_TYPE_SINGLE)
 	e5:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e5:SetRange(LOCATION_MZONE)
 	e5:SetCode(EFFECT_CANNOT_CHANGE_CONTROL)
 	c:RegisterEffect(e5)
-	--release limit
+
+	-- Unaffected by Spell/Trap effects that would make this card leave the field
+	-- Unaffected by other monsters' effects, except for same/higher Divine Hierarchy
 	local e6=Effect.CreateEffect(c)
 	e6:SetType(EFFECT_TYPE_SINGLE)
-	e6:SetCode(EFFECT_UNRELEASABLE_SUM)
 	e6:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e6:SetRange(LOCATION_MZONE)
-	e6:SetValue(c10000020.recon)
+	e6:SetCode(EFFECT_IMMUNE_EFFECT)
+	e6:SetValue(c10000020.efilter)
 	c:RegisterEffect(e6)
-	local e7=e6:Clone()
-	e7:SetCode(EFFECT_UNRELEASABLE_NONSUM)
+
+	-- Cannot be destroyed by battle with a monster with lower Divine Hierarchy
+	local e7=Effect.CreateEffect(c)
+	e7:SetType(EFFECT_TYPE_SINGLE)
+	e7:SetCode(EFFECT_INDESTRUCTABLE_BATTLE)
+	e7:SetValue(c10000020.batfilter)
 	c:RegisterEffect(e7)
-	--immune spell
+
+	-- Controller takes no battle damage from that battle
+	local e8=Effect.CreateEffect(c)
+	e8:SetType(EFFECT_TYPE_SINGLE)
+	e8:SetCode(EFFECT_AVOID_BATTLE_DAMAGE)
+	e8:SetValue(c10000020.batfilter)
+	c:RegisterEffect(e8)
+
+	-- If Special Summoned, return to location it was Special Summoned from during End Phase
+	local e9=Effect.CreateEffect(c)
+	e9:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e9:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
+	e9:SetCode(EVENT_SPSUMMON_SUCCESS)
+	e9:SetOperation(c10000020.retreg)
+	c:RegisterEffect(e9)
+
+	-- Other cards' effects are only applied on this card for 1 turn (Reset at End Phase)
+	local e10=Effect.CreateEffect(c)
+	e10:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+	e10:SetCode(EVENT_PHASE+PHASE_END)
+	e10:SetRange(LOCATION_MZONE)
+	e10:SetCountLimit(1)
+	e10:SetOperation(c10000020.resetop)
+	c:RegisterEffect(e10)
+
+	-- While face-up on the field, this card is also treated as a Dragon monster
 	local e11=Effect.CreateEffect(c)
 	e11:SetType(EFFECT_TYPE_SINGLE)
-	e11:SetCode(EFFECT_IMMUNE_EFFECT)
 	e11:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e11:SetRange(LOCATION_MZONE)
-	e11:SetValue(c10000020.efilter)
+	e11:SetCode(EFFECT_ADD_RACE)
+	e11:SetValue(RACE_DRAGON)
 	c:RegisterEffect(e11)
-	--cannot be target
+
+	-- The original ATK/DEF of this card each become equal to the number of cards in your hand x 1000
 	local e12=Effect.CreateEffect(c)
 	e12:SetType(EFFECT_TYPE_SINGLE)
-	e12:SetCode(EFFECT_IMMUNE_EFFECT)
 	e12:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e12:SetRange(LOCATION_MZONE)
-	e12:SetValue(c10000020.tgfilter)
+	e12:SetCode(EFFECT_SET_BASE_ATTACK)
+	e12:SetValue(c10000020.adval)
 	c:RegisterEffect(e12)
-	--ATK/DEF effects are only applied until the End Phase
-	local e13=Effect.CreateEffect(c)
-	e13:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-	e13:SetProperty(EFFECT_FLAG_REPEAT)
-	e13:SetRange(LOCATION_MZONE)
-	e13:SetCode(EVENT_PHASE+PHASE_END)
-	e13:SetCountLimit(1)
-	e13:SetOperation(c10000020.atkdefresetop)
+	local e13=e12:Clone()
+	e13:SetCode(EFFECT_SET_BASE_DEFENSE)
 	c:RegisterEffect(e13)
-	--Race "Dragon"
+
+	-- If a monster is Summoned to opponent's field in face-up Position, while this card can attack...
 	local e14=Effect.CreateEffect(c)
-	e14:SetType(EFFECT_TYPE_SINGLE)
-	e14:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e14:SetDescription(aux.Stringid(10000020,0))
+	e14:SetCategory(CATEGORY_ATKCHANGE+CATEGORY_DEFCHANGE+CATEGORY_DESTROY)
+	e14:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
+	e14:SetCode(EVENT_SUMMON_SUCCESS)
 	e14:SetRange(LOCATION_MZONE)
-	e14:SetCode(EFFECT_ADD_RACE)
-	e14:SetValue(RACE_DRAGON)
+	e14:SetCondition(c10000020.atkcon)
+	e14:SetTarget(c10000020.atktg)
+	e14:SetOperation(c10000020.atkop)
 	c:RegisterEffect(e14)
-	--If Special Summoned: Send to Grave
-	local e16=Effect.CreateEffect(c)
-	e16:SetDescription(aux.Stringid(10000020,1))
-	e16:SetCategory(CATEGORY_TOGRAVE)
-	e16:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
-	e16:SetRange(LOCATION_MZONE)
-	e16:SetProperty(EFFECT_FLAG_REPEAT+EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
-	e16:SetCountLimit(1)
-	e16:SetCode(EVENT_PHASE+PHASE_END)
-	e16:SetCondition(c10000020.stgcon)
-	e16:SetTarget(c10000020.stgtg)
-	e16:SetOperation(c10000020.stgop)
+	local e15=e14:Clone()
+	e15:SetCode(EVENT_SPSUMMON_SUCCESS)
+	c:RegisterEffect(e15)
+	local e16=e14:Clone()
+	e16:SetCode(EVENT_FLIP_SUMMON_SUCCESS)
 	c:RegisterEffect(e16)
-	--indestructable
-	local e17=Effect.CreateEffect(c)
-	e17:SetType(EFFECT_TYPE_SINGLE)
-	e17:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
-	e17:SetCode(EFFECT_INDESTRUCTABLE_EFFECT)
-	e17:SetRange(LOCATION_MZONE)
-	e17:SetValue(c10000020.indes)
-	c:RegisterEffect(e17)
-	--atk/def
-	local e18=Effect.CreateEffect(c)
-	e18:SetType(EFFECT_TYPE_SINGLE)
-	e18:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
-	e18:SetRange(LOCATION_MZONE)
-	e18:SetCode(EFFECT_UPDATE_ATTACK)
-	e18:SetValue(c10000020.adval)
-	c:RegisterEffect(e18)
-	local e19=e18:Clone()
-	e19:SetCode(EFFECT_UPDATE_DEFENCE)
-	c:RegisterEffect(e19)
-	--atkdown
-	local e20=Effect.CreateEffect(c)
-	e20:SetDescription(aux.Stringid(10000020,2))
-	e20:SetCategory(CATEGORY_ATKCHANGE)
-	e20:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
-	e20:SetRange(LOCATION_MZONE)
-	e20:SetCode(EVENT_SUMMON_SUCCESS)
-	e20:SetCondition(c10000020.atkcon)
-	e20:SetTarget(c10000020.atktg)
-	e20:SetOperation(c10000020.atkop)
-	c:RegisterEffect(e20)
-	local e21=e20:Clone()
-	e21:SetCode(EVENT_FLIP_SUMMON_SUCCESS)
-	c:RegisterEffect(e21)
-	local e22=e20:Clone()
-	e22:SetCode(EVENT_SPSUMMON_SUCCESS)
-	c:RegisterEffect(e22)
 end
-function c10000020.adval(e,c)
-	return Duel.GetFieldGroupCount(c:GetControler(),LOCATION_HAND,0)*1000
+
+-- Divine Hierarchy System
+function c10000020.get_hierarchy(c)
+    if c:IsCode(10000000) or c:IsCode(10000020) then return 1 end -- Obelisk & Slifer
+    if c:IsCode(10000010) then return 2 end -- Ra
+    if c:IsCode(10000040) then return 3 end -- Horakhty (if applicable)
+    return 0 -- Everything else
 end
-function c10000020.indes(e,c)
-	return not c:IsCode(10000010)
+
+-- Checks if the monster is physically able to declare an attack
+function c10000020.can_attack(c)
+	return c:IsAttackPos() and not c:IsHasEffect(EFFECT_CANNOT_ATTACK) and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
 end
+
 function c10000020.recon(e,c)
 	return c:GetControler()~=e:GetHandler():GetControler()
 end
-function c10000020.sumoncon(e,c)
+
+function c10000020.sumcon(e,c)
 	if c==nil then return true end
 	return Duel.GetLocationCount(c:GetControler(),LOCATION_MZONE)>-3 and Duel.GetTributeCount(c)>=3
 end
-function c10000020.sumonop(e,tp,eg,ep,ev,re,r,rp,c)
+
+function c10000020.sumop(e,tp,eg,ep,ev,re,r,rp,c)
 	local g=Duel.SelectTribute(tp,c,3,3)
 	c:SetMaterial(g)
 	Duel.Release(g,REASON_SUMMON+REASON_MATERIAL)
 end
-function c10000020.setcon(e,c)
-	if not c then return true end
+
+function c10000020.efilter(e,te)
+	local c=e:GetHandler()
+	local tc=te:GetHandler()
+
+	if te:IsActiveType(TYPE_SPELL+TYPE_TRAP) then
+		local cat=te:GetCategory()
+		-- Checks if the S/T effect attempts to make the card leave the field
+		return bit.band(cat,CATEGORY_DESTROY)~=0 or bit.band(cat,CATEGORY_REMOVE)~=0
+			or bit.band(cat,CATEGORY_TOHAND)~=0 or bit.band(cat,CATEGORY_TODECK)~=0
+			or bit.band(cat,CATEGORY_TOGRAVE)~=0
+	elseif te:IsActiveType(TYPE_MONSTER) then
+		-- Checks if the monster effect comes from a lower hierarchy
+		return c10000020.get_hierarchy(tc) < c10000020.get_hierarchy(c)
+	end
 	return false
 end
-function c10000020.sumsuc(e,tp,eg,ep,ev,re,r,rp)
-	Duel.SetChainLimitTillChainEnd(aux.FALSE)
+
+function c10000020.batfilter(e,c)
+	return c10000020.get_hierarchy(c) < c10000020.get_hierarchy(e:GetHandler())
 end
-function c10000020.efilter(e,te)
-	return te:IsActiveType(TYPE_EFFECT) and not te:GetHandler():IsAttribute(ATTRIBUTE_DEVINE)
+
+-- Return to previous location logic
+function c10000020.retreg(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	local loc=c:GetPreviousLocation()
+	local e1=Effect.CreateEffect(c)
+	e1:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
+	e1:SetDescription(aux.Stringid(10000020,1))
+	e1:SetCategory(CATEGORY_TOHAND+CATEGORY_TODECK+CATEGORY_TOGRAVE+CATEGORY_REMOVE)
+	e1:SetCode(EVENT_PHASE+PHASE_END)
+	e1:SetRange(LOCATION_MZONE)
+	e1:SetCountLimit(1)
+	e1:SetLabel(loc)
+	e1:SetOperation(c10000020.retop)
+	e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END)
+	c:RegisterEffect(e1)
 end
-function c10000020.tgfilter(e,re)
-	if not re:IsActiveType(TYPE_SPELL+TYPE_TRAP) or not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return false end
-	local ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_TOHAND)
-	if ex and tg then return true end
-	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_DESTROY)
-	if ex and tg then return true end
-	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_REMOVE)
-	if ex and tg then return true end
-	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_TODECK)
-	if ex and tg then return true end
-	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_RELEASE)
-	if ex and tg then return true end
-	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_TOGRAVE)
-	return ex and tg
-end
-function c10000020.stgcon(e,tp,eg,ep,ev,re,r,rp)
-	return bit.band(e:GetHandler():GetSummonType(),SUMMON_TYPE_SPECIAL)==SUMMON_TYPE_SPECIAL
-end
-function c10000020.stgtg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return true end
-	Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,e:GetHandler(),1,0,0)
-end
-function c10000020.stgop(e,tp,eg,ep,ev,re,r,rp)
+
+function c10000020.retop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	if c:IsRelateToEffect(e) and c:IsFaceup() then
-		Duel.SendtoGrave(c,REASON_EFFECT)
+		local loc=e:GetLabel()
+		if loc==LOCATION_GRAVE then
+			Duel.SendtoGrave(c,REASON_EFFECT)
+		elseif loc==LOCATION_HAND then
+			Duel.SendtoHand(c,nil,REASON_EFFECT)
+		elseif loc==LOCATION_DECK then
+			Duel.SendtoDeck(c,nil,2,REASON_EFFECT)
+		elseif loc==LOCATION_REMOVED then
+			Duel.Remove(c,POS_FACEUP,REASON_EFFECT)
+		else
+			Duel.SendtoGrave(c,REASON_EFFECT)
+		end
 	end
 end
-function c10000020.atkdefresetop(e,tp,eg,ep,ev,re,r,rp)
+
+-- Approximates "Effects apply for 1 turn" by hard resetting the base stats at the End Phase
+function c10000020.resetop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
 	e1:SetCode(EFFECT_SET_ATTACK_FINAL)
 	e1:SetValue(c10000020.adval)
+	e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 	c:RegisterEffect(e1)
-	local e2=Effect.CreateEffect(c)
-	e2:SetType(EFFECT_TYPE_SINGLE)
-	e2:SetCode(EFFECT_SET_DEFENCE_FINAL)
-	e2:SetValue(c10000020.adval)
+	local e2=e1:Clone()
+	e2:SetCode(EFFECT_SET_DEFENSE_FINAL)
 	c:RegisterEffect(e2)
 end
+
+-- Hand x 1000 function
+function c10000020.adval(e,c)
+	local handler = e:GetHandler()
+	return Duel.GetFieldGroupCount(handler:GetControler(),LOCATION_HAND,0)*1000
+end
+
+-- Thunder Force conditions
 function c10000020.atkfilter(c,e,tp)
-	return c:IsControler(tp) and (not e or c:IsRelateToEffect(e))
+	return c:IsControler(1-tp) and c:IsFaceup() and (not e or c:IsRelateToEffect(e))
 end
+
 function c10000020.atkcon(e,tp,eg,ep,ev,re,r,rp)
-	return eg:IsExists(c10000020.atkfilter,1,nil,nil,1-tp)
+	local c=e:GetHandler()
+	return eg:IsExists(c10000020.atkfilter,1,nil,nil,tp) and c10000020.can_attack(c)
 end
+
 function c10000020.atktg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return e:GetHandler():IsRelateToEffect(e) end
 	Duel.SetTargetCard(eg)
 end
+
 function c10000020.atkop(e,tp,eg,ep,ev,re,r,rp)
-	local g=eg:Filter(c10000020.atkfilter,nil,e,1-tp)
-	local dg=Group.CreateGroup()
 	local c=e:GetHandler()
+	if not c:IsRelateToEffect(e) or not c10000020.can_attack(c) then return end
+
+	local g=eg:Filter(c10000020.atkfilter,nil,e,tp)
+	local dg=Group.CreateGroup()
 	local tc=g:GetFirst()
+
 	while tc do
 		if tc:IsPosition(POS_FACEUP_ATTACK) then
-			local preatk=tc:GetAttack()
 			local e1=Effect.CreateEffect(c)
 			e1:SetType(EFFECT_TYPE_SINGLE)
 			e1:SetCode(EFFECT_UPDATE_ATTACK)
 			e1:SetValue(-2000)
-			e1:SetReset(RESET_EVENT+0x1fe0000)
+			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 			tc:RegisterEffect(e1)
-			if preatk~=0 and tc:GetAttack()==0 then dg:AddCard(tc) end
-		elseif tc:IsPosition(POS_FACEUP_DEFENCE) then
-			local predef=tc:GetDefence()
+			if tc:GetAttack()==0 then dg:AddCard(tc) end
+		elseif tc:IsPosition(POS_FACEUP_DEFENSE) then
 			local e1=Effect.CreateEffect(c)
 			e1:SetType(EFFECT_TYPE_SINGLE)
-			e1:SetCode(EFFECT_UPDATE_DEFENCE)
+			e1:SetCode(EFFECT_UPDATE_DEFENSE)
 			e1:SetValue(-2000)
-			e1:SetReset(RESET_EVENT+0x1fe0000)
+			e1:SetReset(RESET_EVENT+RESETS_STANDARD)
 			tc:RegisterEffect(e1)
-			if predef~=0 and tc:GetDefence()==0 then dg:AddCard(tc) end
+			if tc:GetDefense()==0 then dg:AddCard(tc) end
 		end
 		tc=g:GetNext()
 	end
-	Duel.Destroy(dg,REASON_EFFECT)
+
+	if dg:GetCount()>0 then
+		Duel.Destroy(dg,REASON_EFFECT)
+	end
 end
