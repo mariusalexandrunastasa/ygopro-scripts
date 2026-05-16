@@ -1,5 +1,7 @@
 -- Slifer the Sky Dragon
 function c10000020.initial_effect(c)
+	c:SetUniqueOnField(1,0,10000020)
+
 	-- Requires 3 Tributes to Normal Summon/Set
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
@@ -21,10 +23,11 @@ function c10000020.initial_effect(c)
 	e3:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e3:SetRange(LOCATION_MZONE)
 	e3:SetCode(EFFECT_UNRELEASABLE_SUM)
-	e3:SetValue(c10000020.recon)
+	e3:SetValue(c10000020.sumlimit)
 	c:RegisterEffect(e3)
 	local e4=e3:Clone()
 	e4:SetCode(EFFECT_UNRELEASABLE_NONSUM)
+	e4:SetValue(c10000020.nonsumlimit)
 	c:RegisterEffect(e4)
 
 	-- Control of this card cannot switch
@@ -126,11 +129,33 @@ end
 
 -- Checks if the monster is physically able to declare an attack
 function c10000020.can_attack(c)
-	return c:IsAttackPos() and not c:IsHasEffect(EFFECT_CANNOT_ATTACK) and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
+	local tp=c:GetControler()
+	-- Must be the controller's turn
+	if Duel.GetTurnPlayer()~=tp then return false end
+	-- Must be Main Phase 1, Main Phase 2, or during the Battle Phase
+	local ph=Duel.GetCurrentPhase()
+	local is_phase = (ph==PHASE_MAIN1 or ph==PHASE_MAIN2 or (ph>=PHASE_BATTLE_START and ph<=PHASE_BATTLE))
+	if not is_phase then return false end
+	-- Must be face-up attack position and physically capable of attacking
+	return c:IsFaceup() and c:IsAttackPos() and not c:IsHasEffect(EFFECT_CANNOT_ATTACK) and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
 end
 
-function c10000020.recon(e,c)
-	return c:GetControler()~=e:GetHandler():GetControler()
+function c10000020.sumlimit(e,c)
+	if not c then return false end
+	return c:GetControler()~=e:GetHandlerPlayer()
+end
+
+function c10000020.nonsumlimit(e,re,rp)
+	local tp=e:GetHandlerPlayer()
+	local p=rp
+	-- Safeguard: If inside an active chain activation cost check, grab the true player initiating it
+	if Duel.GetCurrentChain()>0 then
+		p=Duel.GetChainInfo(0,CHAININFO_TRIGGERING_PLAYER)
+	elseif not p or p==50 then -- Fallback for empty or invalid player engine states
+		p=Duel.GetTurnPlayer()
+	end
+	-- Only block if the player attempting the tribute is the opponent
+	return p~=tp
 end
 
 function c10000020.sumcon(e,c)
@@ -226,8 +251,9 @@ function c10000020.atkfilter(c,e,tp)
 end
 
 function c10000020.atkcon(e,tp,eg,ep,ev,re,r,rp)
-	local c=e:GetHandler()
-	return eg:IsExists(c10000020.atkfilter,1,nil,nil,tp) and c10000020.can_attack(c)
+	-- The second mouth triggers purely based on the opponent summoning a monster.
+	-- It works on either turn, in any battle position, even if Slifer is prevented from attacking.
+	return eg:IsExists(c10000020.atkfilter,1,nil,nil,tp) and e:GetHandler():IsFaceup()
 end
 
 function c10000020.atktg(e,tp,eg,ep,ev,re,r,rp,chk)

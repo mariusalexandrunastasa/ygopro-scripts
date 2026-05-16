@@ -1,5 +1,7 @@
 -- Obelisk the Tormentor
 function c10000000.initial_effect(c)
+	c:SetUniqueOnField(1,0,10000000)
+
 	-- Requires 3 Tributes to Normal Summon/Set
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
@@ -21,10 +23,11 @@ function c10000000.initial_effect(c)
 	e3:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e3:SetRange(LOCATION_MZONE)
 	e3:SetCode(EFFECT_UNRELEASABLE_SUM)
-	e3:SetValue(c10000000.recon)
+	e3:SetValue(c10000000.sumlimit)
 	c:RegisterEffect(e3)
 	local e4=e3:Clone()
 	e4:SetCode(EFFECT_UNRELEASABLE_NONSUM)
+	e4:SetValue(c10000000.nonsumlimit)
 	c:RegisterEffect(e4)
 
 	-- Control of this card cannot switch
@@ -54,9 +57,10 @@ function c10000000.initial_effect(c)
 
 	-- Controller takes no battle damage from that battle
 	local e8=Effect.CreateEffect(c)
-	e8:SetType(EFFECT_TYPE_SINGLE)
-	e8:SetCode(EFFECT_AVOID_BATTLE_DAMAGE)
-	e8:SetValue(c10000000.batfilter)
+	e8:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e8:SetCode(EVENT_PRE_BATTLE_DAMAGE)
+	e8:SetCondition(c10000000.damcon)
+	e8:SetOperation(c10000000.damop)
 	c:RegisterEffect(e8)
 
 	-- If Special Summoned, return to location it was Special Summoned from during End Phase
@@ -105,19 +109,42 @@ end
 
 -- Divine Hierarchy System
 function c10000000.get_hierarchy(c)
-	if c:IsCode(10000000) or c:IsCode(10000020) then return 1 end -- Obelisk & Slifer
-	if c:IsCode(10000010) then return 2 end -- Ra
-	if c:IsCode(10000040) then return 3 end -- Horakhty (if applicable)
-	return 0 -- Everything else
+    if not c then return 0 end
+    if c:IsCode(10000000) or c:IsCode(10000020) then return 1 end -- Obelisk & Slifer
+    if c:IsCode(10000010) then return 2 end -- Ra
+    if c:IsCode(10000040) then return 3 end -- Horakhty (if applicable)
+    return 0 -- Everything else
 end
 
 -- Checks if the monster is physically able to declare an attack
 function c10000000.can_attack(c)
-	return c:IsAttackPos() and not c:IsHasEffect(EFFECT_CANNOT_ATTACK) and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
+	local tp=c:GetControler()
+	-- Must be the controller's turn
+	if Duel.GetTurnPlayer()~=tp then return false end
+	-- Must be Main Phase 1 or during the Battle Phase
+	local ph=Duel.GetCurrentPhase()
+	local is_phase = (ph==PHASE_MAIN1 or (ph>=PHASE_BATTLE_START and ph<=PHASE_BATTLE))
+	if not is_phase then return false end
+	-- Must be face-up attack position and physically capable of attacking
+	return c:IsFaceup() and c:IsAttackPos() and not c:IsHasEffect(EFFECT_CANNOT_ATTACK) and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
 end
 
-function c10000000.recon(e,c)
-	return c:GetControler()~=e:GetHandler():GetControler()
+function c10000000.sumlimit(e,c)
+	if not c then return false end
+	return c:GetControler()~=e:GetHandlerPlayer()
+end
+
+function c10000000.nonsumlimit(e,re,rp)
+	local tp=e:GetHandlerPlayer()
+	local p=rp
+	-- Safeguard: If inside an active chain activation cost check, grab the true player initiating it
+	if Duel.GetCurrentChain()>0 then
+		p=Duel.GetChainInfo(0,CHAININFO_TRIGGERING_PLAYER)
+	elseif not p or p==50 then -- Fallback for empty or invalid player engine states
+		p=Duel.GetTurnPlayer()
+	end
+	-- Only block if the player attempting the tribute is the opponent
+	return p~=tp
 end
 
 function c10000000.sumcon(e,c)
@@ -149,7 +176,17 @@ function c10000000.efilter(e,te)
 end
 
 function c10000000.batfilter(e,c)
+	if not c then return false end
 	return c10000000.get_hierarchy(c) < c10000000.get_hierarchy(e:GetHandler())
+end
+
+function c10000000.damcon(e,tp,eg,ep,ev,re,r,rp)
+	local bc=e:GetHandler():GetBattleTarget()
+	return ep==tp and bc and c10000000.get_hierarchy(bc) < c10000000.get_hierarchy(e:GetHandler())
+end
+
+function c10000000.damop(e,tp,eg,ep,ev,re,r,rp)
+	Duel.ChangeBattleDamage(ep,0)
 end
 
 -- Return to previous location logic
