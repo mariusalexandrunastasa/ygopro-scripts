@@ -1,13 +1,13 @@
---オシリスの天空竜
+--オシリスの天空竜 Slifer the Sky Dragon
 function c10000020.initial_effect(c)
-	--summon with 3 tribute
+	c:SetUniqueOnField(1,0,10000020)
+	--Summon with 3 Tribute
 	local e1=Effect.CreateEffect(c)
-	e1:SetDescription(aux.Stringid(10000020,2))
 	e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
 	e1:SetType(EFFECT_TYPE_SINGLE)
 	e1:SetCode(EFFECT_LIMIT_SUMMON_PROC)
-	e1:SetCondition(c10000020.ttcon)
-	e1:SetOperation(c10000020.ttop)
+	e1:SetCondition(c10000020.sumoncon)
+	e1:SetOperation(c10000020.sumonop)
 	e1:SetValue(SUMMON_TYPE_ADVANCE)
 	c:RegisterEffect(e1)
 	local e2=Effect.CreateEffect(c)
@@ -15,7 +15,7 @@ function c10000020.initial_effect(c)
 	e2:SetCode(EFFECT_LIMIT_SET_PROC)
 	e2:SetCondition(c10000020.setcon)
 	c:RegisterEffect(e2)
-	--summon
+	--Summon Cannot be Negated
 	local e3=Effect.CreateEffect(c)
 	e3:SetType(EFFECT_TYPE_SINGLE)
 	e3:SetCode(EFFECT_CANNOT_DISABLE_SUMMON)
@@ -27,97 +27,211 @@ function c10000020.initial_effect(c)
 	e4:SetCode(EVENT_SUMMON_SUCCESS)
 	e4:SetOperation(c10000020.sumsuc)
 	c:RegisterEffect(e4)
-	--to grave
+	--control
 	local e5=Effect.CreateEffect(c)
-	e5:SetDescription(aux.Stringid(10000020,0))
-	e5:SetCategory(CATEGORY_TOGRAVE)
-	e5:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
+	e5:SetType(EFFECT_TYPE_SINGLE)
+	e5:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e5:SetRange(LOCATION_MZONE)
-	e5:SetCountLimit(1)
-	e5:SetCode(EVENT_PHASE+PHASE_END)
-	e5:SetCondition(c10000020.tgcon)
-	e5:SetTarget(c10000020.tgtg)
-	e5:SetOperation(c10000020.tgop)
+	e5:SetCode(EFFECT_CANNOT_CHANGE_CONTROL)
 	c:RegisterEffect(e5)
-	--atk/def
+	--release limit
 	local e6=Effect.CreateEffect(c)
 	e6:SetType(EFFECT_TYPE_SINGLE)
-	e6:SetCode(EFFECT_UPDATE_ATTACK)
+	e6:SetCode(EFFECT_UNRELEASABLE_SUM)
 	e6:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e6:SetRange(LOCATION_MZONE)
-	e6:SetValue(c10000020.adval)
+	e6:SetValue(c10000020.recon)
 	c:RegisterEffect(e6)
 	local e7=e6:Clone()
-	e7:SetCode(EFFECT_UPDATE_DEFENSE)
+	e7:SetCode(EFFECT_UNRELEASABLE_NONSUM)
 	c:RegisterEffect(e7)
+	--immune spell
+	local e11=Effect.CreateEffect(c)
+	e11:SetType(EFFECT_TYPE_SINGLE)
+	e11:SetCode(EFFECT_IMMUNE_EFFECT)
+	e11:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e11:SetRange(LOCATION_MZONE)
+	e11:SetValue(c10000020.efilter)
+	c:RegisterEffect(e11)
+	--cannot be target
+	local e12=Effect.CreateEffect(c)
+	e12:SetType(EFFECT_TYPE_SINGLE)
+	e12:SetCode(EFFECT_IMMUNE_EFFECT)
+	e12:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e12:SetRange(LOCATION_MZONE)
+	e12:SetValue(c10000020.tgfilter)
+	c:RegisterEffect(e12)
+	--ATK/DEF effects are only applied until the End Phase
+	local e13=Effect.CreateEffect(c)
+	e13:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+	e13:SetProperty(EFFECT_FLAG_REPEAT)
+	e13:SetRange(LOCATION_MZONE)
+	e13:SetCode(EVENT_PHASE+PHASE_END)
+	e13:SetCountLimit(1)
+	e13:SetOperation(c10000020.atkdefresetop)
+	c:RegisterEffect(e13)
+	--Race "Dragon"
+	local e14=Effect.CreateEffect(c)
+	e14:SetType(EFFECT_TYPE_SINGLE)
+	e14:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e14:SetRange(LOCATION_MZONE)
+	e14:SetCode(EFFECT_ADD_RACE)
+	e14:SetValue(RACE_DRAGON)
+	c:RegisterEffect(e14)
+	--If Special Summoned: Send to Grave
+	local e16=Effect.CreateEffect(c)
+	e16:SetDescription(aux.Stringid(10000020,1))
+	e16:SetCategory(CATEGORY_TOGRAVE)
+	e16:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
+	e16:SetRange(LOCATION_MZONE)
+	e16:SetProperty(EFFECT_FLAG_REPEAT+EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
+	e16:SetCountLimit(1)
+	e16:SetCode(EVENT_PHASE+PHASE_END)
+	e16:SetCondition(c10000020.stgcon)
+	e16:SetTarget(c10000020.stgtg)
+	e16:SetOperation(c10000020.stgop)
+	c:RegisterEffect(e16)
+	--indestructable
+	local e17=Effect.CreateEffect(c)
+	e17:SetType(EFFECT_TYPE_SINGLE)
+	e17:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e17:SetCode(EFFECT_INDESTRUCTABLE_EFFECT)
+	e17:SetRange(LOCATION_MZONE)
+	e17:SetValue(c10000020.indes)
+	c:RegisterEffect(e17)
+	--atk/def
+	local e18=Effect.CreateEffect(c)
+	e18:SetType(EFFECT_TYPE_SINGLE)
+	e18:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e18:SetRange(LOCATION_MZONE)
+	e18:SetCode(EFFECT_UPDATE_ATTACK)
+	e18:SetValue(c10000020.adval)
+	c:RegisterEffect(e18)
+	local e19=e18:Clone()
+	e19:SetCode(EFFECT_UPDATE_DEFENCE)
+	c:RegisterEffect(e19)
 	--atkdown
-	local e8=Effect.CreateEffect(c)
-	e8:SetDescription(aux.Stringid(10000020,1))
-	e8:SetCategory(CATEGORY_ATKCHANGE)
-	e8:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
-	e8:SetRange(LOCATION_MZONE)
-	e8:SetCode(EVENT_SUMMON_SUCCESS)
-	e8:SetTarget(c10000020.atktg)
-	e8:SetOperation(c10000020.atkop)
-	c:RegisterEffect(e8)
-	local e9=e8:Clone()
-	e9:SetCode(EVENT_SPSUMMON_SUCCESS)
-	c:RegisterEffect(e9)
+	local e20=Effect.CreateEffect(c)
+	e20:SetDescription(aux.Stringid(10000020,2))
+	e20:SetCategory(CATEGORY_ATKCHANGE)
+	e20:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_TRIGGER_F)
+	e20:SetRange(LOCATION_MZONE)
+	e20:SetCode(EVENT_SUMMON_SUCCESS)
+	e20:SetCondition(c10000020.atkcon)
+	e20:SetTarget(c10000020.atktg)
+	e20:SetOperation(c10000020.atkop)
+	c:RegisterEffect(e20)
+	local e21=e20:Clone()
+	e21:SetCode(EVENT_FLIP_SUMMON_SUCCESS)
+	c:RegisterEffect(e21)
+	local e22=e20:Clone()
+	e22:SetCode(EVENT_SPSUMMON_SUCCESS)
+	c:RegisterEffect(e22)
 end
-function c10000020.ttcon(e,c,minc)
+function c10000020.adval(e,c)
+	return Duel.GetFieldGroupCount(c:GetControler(),LOCATION_HAND,0)*1000
+end
+function c10000020.indes(e,c)
+	return not c:IsCode(10000010)
+end
+function c10000020.recon(e,c)
+	return c:GetControler()~=e:GetHandler():GetControler()
+end
+function c10000020.sumoncon(e,c)
 	if c==nil then return true end
-	return minc<=3 and Duel.CheckTribute(c,3)
+	return Duel.GetLocationCount(c:GetControler(),LOCATION_MZONE)>-3 and Duel.GetTributeCount(c)>=3
 end
-function c10000020.ttop(e,tp,eg,ep,ev,re,r,rp,c)
+function c10000020.sumonop(e,tp,eg,ep,ev,re,r,rp,c)
 	local g=Duel.SelectTribute(tp,c,3,3)
 	c:SetMaterial(g)
 	Duel.Release(g,REASON_SUMMON+REASON_MATERIAL)
 end
-function c10000020.setcon(e,c,minc)
+function c10000020.setcon(e,c)
 	if not c then return true end
 	return false
 end
 function c10000020.sumsuc(e,tp,eg,ep,ev,re,r,rp)
 	Duel.SetChainLimitTillChainEnd(aux.FALSE)
 end
-function c10000020.tgcon(e,tp,eg,ep,ev,re,r,rp)
-	return e:GetHandler():IsSummonType(SUMMON_TYPE_SPECIAL)
+function c10000020.efilter(e,te)
+	return te:IsActiveType(TYPE_EFFECT) and not te:GetHandler():IsAttribute(ATTRIBUTE_DEVINE)
 end
-function c10000020.tgtg(e,tp,eg,ep,ev,re,r,rp,chk)
+function c10000020.tgfilter(e,re)
+	if not re:IsActiveType(TYPE_SPELL+TYPE_TRAP) or not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return false end
+	local ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_TOHAND)
+	if ex and tg then return true end
+	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_DESTROY)
+	if ex and tg then return true end
+	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_REMOVE)
+	if ex and tg then return true end
+	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_TODECK)
+	if ex and tg then return true end
+	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_RELEASE)
+	if ex and tg then return true end
+	ex,tg,tc=Duel.GetOperationInfo(ev,CATEGORY_TOGRAVE)
+	return ex and tg
+end
+function c10000020.stgcon(e,tp,eg,ep,ev,re,r,rp)
+	return bit.band(e:GetHandler():GetSummonType(),SUMMON_TYPE_SPECIAL)==SUMMON_TYPE_SPECIAL
+end
+function c10000020.stgtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end
 	Duel.SetOperationInfo(0,CATEGORY_TOGRAVE,e:GetHandler(),1,0,0)
 end
-function c10000020.tgop(e,tp,eg,ep,ev,re,r,rp)
+function c10000020.stgop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	if c:IsRelateToEffect(e) and c:IsFaceup() then
 		Duel.SendtoGrave(c,REASON_EFFECT)
 	end
 end
-function c10000020.adval(e,c)
-	return Duel.GetFieldGroupCount(c:GetControler(),LOCATION_HAND,0)*1000
+function c10000020.atkdefresetop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	local e1=Effect.CreateEffect(c)
+	e1:SetType(EFFECT_TYPE_SINGLE)
+	e1:SetCode(EFFECT_SET_ATTACK_FINAL)
+	e1:SetValue(c10000020.adval)
+	c:RegisterEffect(e1)
+	local e2=Effect.CreateEffect(c)
+	e2:SetType(EFFECT_TYPE_SINGLE)
+	e2:SetCode(EFFECT_SET_DEFENCE_FINAL)
+	e2:SetValue(c10000020.adval)
+	c:RegisterEffect(e2)
 end
-function c10000020.atkfilter(c,tp)
-	return c:IsControler(tp) and c:IsPosition(POS_FACEUP_ATTACK)
+function c10000020.atkfilter(c,e,tp)
+	return c:IsControler(tp) and (not e or c:IsRelateToEffect(e))
+end
+function c10000020.atkcon(e,tp,eg,ep,ev,re,r,rp)
+	return eg:IsExists(c10000020.atkfilter,1,nil,nil,1-tp)
 end
 function c10000020.atktg(e,tp,eg,ep,ev,re,r,rp,chk)
-	if chk==0 then return eg:IsExists(c10000020.atkfilter,1,e:GetHandler(),1-tp) end
-	local g=eg:Filter(c10000020.atkfilter,e:GetHandler(),1-tp)
-	Duel.SetTargetCard(g)
+	if chk==0 then return e:GetHandler():IsRelateToEffect(e) end
+	Duel.SetTargetCard(eg)
 end
 function c10000020.atkop(e,tp,eg,ep,ev,re,r,rp)
-	local g=Duel.GetTargetsRelateToChain():Filter(Card.IsFaceup,nil)
+	local g=eg:Filter(c10000020.atkfilter,nil,e,1-tp)
 	local dg=Group.CreateGroup()
 	local c=e:GetHandler()
 	local tc=g:GetFirst()
 	while tc do
-		local preatk=tc:GetAttack()
-		local e1=Effect.CreateEffect(c)
-		e1:SetType(EFFECT_TYPE_SINGLE)
-		e1:SetCode(EFFECT_UPDATE_ATTACK)
-		e1:SetValue(-2000)
-		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
-		tc:RegisterEffect(e1)
-		if preatk~=0 and tc:IsAttack(0) then dg:AddCard(tc) end
+		if tc:IsPosition(POS_FACEUP_ATTACK) then
+			local preatk=tc:GetAttack()
+			local e1=Effect.CreateEffect(c)
+			e1:SetType(EFFECT_TYPE_SINGLE)
+			e1:SetCode(EFFECT_UPDATE_ATTACK)
+			e1:SetValue(-2000)
+			e1:SetReset(RESET_EVENT+0x1fe0000)
+			tc:RegisterEffect(e1)
+			if preatk~=0 and tc:GetAttack()==0 then dg:AddCard(tc) end
+		elseif tc:IsPosition(POS_FACEUP_DEFENCE) then
+			local predef=tc:GetDefence()
+			local e1=Effect.CreateEffect(c)
+			e1:SetType(EFFECT_TYPE_SINGLE)
+			e1:SetCode(EFFECT_UPDATE_DEFENCE)
+			e1:SetValue(-2000)
+			e1:SetReset(RESET_EVENT+0x1fe0000)
+			tc:RegisterEffect(e1)
+			if predef~=0 and tc:GetDefence()==0 then dg:AddCard(tc) end
+		end
 		tc=g:GetNext()
 	end
 	Duel.Destroy(dg,REASON_EFFECT)
