@@ -1,7 +1,5 @@
 -- Slifer the Sky Dragon
 function c10000020.initial_effect(c)
-	c:SetUniqueOnField(1,0,10000020)
-
 	-- Requires 3 Tributes to Normal Summon/Set
 	local e1=Effect.CreateEffect(c)
 	e1:SetType(EFFECT_TYPE_SINGLE)
@@ -121,10 +119,11 @@ end
 
 -- Divine Hierarchy System
 function c10000020.get_hierarchy(c)
-    if c:IsCode(10000000) or c:IsCode(10000020) then return 1 end -- Obelisk & Slifer
-    if c:IsCode(10000010) then return 2 end -- Ra
-    if c:IsCode(10000040) then return 3 end -- Horakhty (if applicable)
-    return 0 -- Everything else
+	if not c then return 0 end
+	if c:IsCode(10000000) or c:IsCode(10000020) then return 1 end -- Obelisk & Slifer
+	if c:IsCode(10000010) then return 2 end -- Ra
+	if c:IsCode(10000040) then return 3 end -- Horakhty (if applicable)
+	return 0 -- Everything else
 end
 
 -- Checks if the monster is physically able to declare an attack.
@@ -177,6 +176,7 @@ function c10000020.efilter(e,te)
 			or bit.band(cat,CATEGORY_TOGRAVE)~=0
 	elseif te:IsActiveType(TYPE_MONSTER) then
 		-- Checks if the monster effect comes from a lower hierarchy
+		if not tc then return false end
 		return c10000020.get_hierarchy(tc) < c10000020.get_hierarchy(c)
 	end
 	return false

@@ -1,7 +1,5 @@
 -- The Winged Dragon of Ra (Anime Version)
 function c10000010.initial_effect(c)
-	c:SetUniqueOnField(1,0,10000010)
-
 	-- Requires 3 Tributes to Normal Summon/Set
 	local e1=Effect.CreateEffect(c)
 	e1:SetProperty(EFFECT_FLAG_CANNOT_DISABLE+EFFECT_FLAG_UNCOPYABLE)
@@ -83,15 +81,10 @@ function c10000010.initial_effect(c)
 
 	-- ATK/DEF become total ATK/DEF of Tributed monsters
 	local e11=Effect.CreateEffect(c)
-	e11:SetType(EFFECT_TYPE_SINGLE)
-	e11:SetCode(EFFECT_MATERIAL_CHECK)
-	e11:SetValue(c10000010.valcheck)
+	e11:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e11:SetCode(EVENT_SUMMON_SUCCESS)
+	e11:SetOperation(c10000010.atkdefop)
 	c:RegisterEffect(e11)
-	local e12=Effect.CreateEffect(c)
-	e12:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-	e12:SetCode(EVENT_SUMMON_SUCCESS)
-	e12:SetOperation(c10000010.atkdefop)
-	c:RegisterEffect(e12)
 
 	-- Special Summoned: unaffected by attack prevention, attacks cannot be negated
 	local e13=Effect.CreateEffect(c)
@@ -119,7 +112,7 @@ function c10000010.initial_effect(c)
 	c:RegisterEffect(e15)
 end
 
--- Divine Hierarchy System (Ra is 2)
+-- Divine Hierarchy System
 function c10000010.get_hierarchy(c)
 	if not c then return 0 end
 	if c:IsCode(10000000) or c:IsCode(10000020) then return 1 end -- Obelisk & Slifer
@@ -146,11 +139,13 @@ end
 function c10000010.nonsumlimit(e,re,rp)
 	local tp=e:GetHandlerPlayer()
 	local p=rp
+	-- Safeguard: If inside an active chain activation cost check, grab the true player initiating it
 	if Duel.GetCurrentChain()>0 then
 		p=Duel.GetChainInfo(0,CHAININFO_TRIGGERING_PLAYER)
-	elseif not p or p==50 then
+	elseif not p or p==50 then -- Fallback for empty or invalid player engine states
 		p=Duel.GetTurnPlayer()
 	end
+	-- Only block if the player attempting the tribute is the opponent
 	return p~=tp
 end
 
@@ -170,10 +165,13 @@ function c10000010.efilter(e,te)
 	local tc=te:GetHandler()
 	if te:IsActiveType(TYPE_SPELL+TYPE_TRAP) then
 		local cat=te:GetCategory()
+		-- Checks if the S/T effect attempts to make the card leave the field
 		return bit.band(cat,CATEGORY_DESTROY)~=0 or bit.band(cat,CATEGORY_REMOVE)~=0
 			or bit.band(cat,CATEGORY_TOHAND)~=0 or bit.band(cat,CATEGORY_TODECK)~=0
 			or bit.band(cat,CATEGORY_TOGRAVE)~=0
 	elseif te:IsActiveType(TYPE_MONSTER) then
+		-- Checks if the monster effect comes from a lower hierarchy
+		if not tc then return false end
 		return c10000010.get_hierarchy(tc) < c10000010.get_hierarchy(c)
 	end
 	return false
@@ -262,20 +260,31 @@ end
 
 function c10000010.atkdefop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
-	local atk=c:GetFlagEffectLabel(10000010)
-	local def=c:GetFlagEffectLabel(10000011)
-	if atk and def then
-		local e1=Effect.CreateEffect(c)
-		e1:SetType(EFFECT_TYPE_SINGLE)
-		e1:SetCode(EFFECT_SET_BASE_ATTACK)
-		e1:SetValue(atk)
-		e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_DISABLE)
-		c:RegisterEffect(e1)
-		local e2=e1:Clone()
-		e2:SetCode(EFFECT_SET_BASE_DEFENSE)
-		e2:SetValue(def)
-		c:RegisterEffect(e2)
+	local g=c:GetMaterial() -- Grabs the monsters explicitly set during sumop
+	local atk=0
+	local def=0
+	local tc=g:GetFirst()
+	-- Loop through the materials and add up the ATK/DEF they had on the field
+	while tc do
+		local catk=tc:GetPreviousAttackOnField()
+		local cdef=tc:GetPreviousDefenseOnField()
+		if catk<0 then catk=0 end
+		if cdef<0 then cdef=0 end
+		atk=atk+catk
+		def=def+cdef
+		tc=g:GetNext()
 	end
+	-- Apply the final tallied stats to Ra
+	local e1=Effect.CreateEffect(c)
+	e1:SetType(EFFECT_TYPE_SINGLE)
+	e1:SetCode(EFFECT_SET_BASE_ATTACK)
+	e1:SetValue(atk)
+	e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_DISABLE)
+	c:RegisterEffect(e1)
+	local e2=e1:Clone()
+	e2:SetCode(EFFECT_SET_BASE_DEFENSE)
+	e2:SetValue(def)
+	c:RegisterEffect(e2)
 end
 
 -- SS Immunity
