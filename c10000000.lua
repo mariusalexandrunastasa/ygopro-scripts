@@ -54,11 +54,13 @@ function c10000000.initial_effect(c)
 	c:RegisterEffect(e7)
 
 	-- Controller takes no battle damage from that battle
+	-- Changed from EVENT_PRE_BATTLE_DAMAGE continuous (used nonexistent
+	-- Duel.ChangeBattleDamage) to EFFECT_AVOID_BATTLE_DAMAGE, matching Slifer's
+	-- implementation which is the correct engine-native approach.
 	local e8=Effect.CreateEffect(c)
-	e8:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-	e8:SetCode(EVENT_PRE_BATTLE_DAMAGE)
-	e8:SetCondition(c10000000.damcon)
-	e8:SetOperation(c10000000.damop)
+	e8:SetType(EFFECT_TYPE_SINGLE)
+	e8:SetCode(EFFECT_AVOID_BATTLE_DAMAGE)
+	e8:SetValue(c10000000.batfilter)
 	c:RegisterEffect(e8)
 
 	-- If Special Summoned, return to location it was Special Summoned from during End Phase
@@ -78,31 +80,40 @@ function c10000000.initial_effect(c)
 	e10:SetOperation(c10000000.resetop)
 	c:RegisterEffect(e10)
 
-	-- During Battle Phase, if this card can attack: Tribute 2; ATK becomes ∞, force attack, calc damage
+	-- While face-up on the field, this card is also treated as a Warrior monster
 	local e11=Effect.CreateEffect(c)
-	e11:SetDescription(aux.Stringid(10000000,0))
-	e11:SetCategory(CATEGORY_ATKCHANGE)
-	e11:SetType(EFFECT_TYPE_QUICK_O)
-	e11:SetCode(EVENT_FREE_CHAIN)
+	e11:SetType(EFFECT_TYPE_SINGLE)
+	e11:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e11:SetRange(LOCATION_MZONE)
-	e11:SetHintTiming(0,TIMING_BATTLE_PHASE)
-	e11:SetCondition(c10000000.infcon)
-	e11:SetCost(c10000000.cost)
-	e11:SetOperation(c10000000.infop)
+	e11:SetCode(EFFECT_ADD_RACE)
+	e11:SetValue(RACE_WARRIOR)
 	c:RegisterEffect(e11)
 
-	-- If this card can attack: Tribute 2; inflict damage equal to ATK and destroy all opponent's monsters
+	-- During Battle Phase, if this card can attack: Tribute 2; ATK becomes ∞, force attack, calc damage
 	local e12=Effect.CreateEffect(c)
-	e12:SetDescription(aux.Stringid(10000000,1))
-	e12:SetCategory(CATEGORY_DAMAGE+CATEGORY_DESTROY)
+	e12:SetDescription(aux.Stringid(10000000,0))
+	e12:SetCategory(CATEGORY_ATKCHANGE)
 	e12:SetType(EFFECT_TYPE_QUICK_O)
 	e12:SetCode(EVENT_FREE_CHAIN)
 	e12:SetRange(LOCATION_MZONE)
-	e12:SetCondition(c10000000.descon)
+	e12:SetHintTiming(0,TIMING_BATTLE_PHASE)
+	e12:SetCondition(c10000000.infcon)
 	e12:SetCost(c10000000.cost)
-	e12:SetTarget(c10000000.destg)
-	e12:SetOperation(c10000000.desop)
+	e12:SetOperation(c10000000.infop)
 	c:RegisterEffect(e12)
+
+	-- If this card can attack: Tribute 2; inflict damage equal to ATK and destroy all opponent's monsters
+	local e13=Effect.CreateEffect(c)
+	e13:SetDescription(aux.Stringid(10000000,1))
+	e13:SetCategory(CATEGORY_DAMAGE+CATEGORY_DESTROY)
+	e13:SetType(EFFECT_TYPE_QUICK_O)
+	e13:SetCode(EVENT_FREE_CHAIN)
+	e13:SetRange(LOCATION_MZONE)
+	e13:SetCondition(c10000000.descon)
+	e13:SetCost(c10000000.cost)
+	e13:SetTarget(c10000000.destg)
+	e13:SetOperation(c10000000.desop)
+	c:RegisterEffect(e13)
 end
 
 -- Divine Hierarchy System
@@ -124,7 +135,9 @@ function c10000000.can_attack(c)
 	local is_phase = (ph==PHASE_MAIN1 or (ph>=PHASE_BATTLE_START and ph<=PHASE_BATTLE))
 	if not is_phase then return false end
 	-- Must be face-up attack position and physically capable of attacking
-	return c:IsFaceup() and c:IsAttackPos() and not c:IsHasEffect(EFFECT_CANNOT_ATTACK) and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
+	return c:IsFaceup() and c:IsAttackPos()
+		and not c:IsHasEffect(EFFECT_CANNOT_ATTACK)
+		and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
 end
 
 function c10000000.sumlimit(e,c)
@@ -177,15 +190,6 @@ end
 function c10000000.batfilter(e,c)
 	if not c then return false end
 	return c10000000.get_hierarchy(c) < c10000000.get_hierarchy(e:GetHandler())
-end
-
-function c10000000.damcon(e,tp,eg,ep,ev,re,r,rp)
-	local bc=e:GetHandler():GetBattleTarget()
-	return ep==tp and bc and c10000000.get_hierarchy(bc) < c10000000.get_hierarchy(e:GetHandler())
-end
-
-function c10000000.damop(e,tp,eg,ep,ev,re,r,rp)
-	Duel.ChangeBattleDamage(ep,0)
 end
 
 -- Return to previous location logic
@@ -254,25 +258,18 @@ end
 function c10000000.infop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	if c:IsRelateToEffect(e) and c:IsFaceup() then
-		-- Apply Infinity ATK
+		-- Apply Infinity ATK until end of the next Damage Step
+		-- Removed Duel.CalculateDamage() call -- that function does not exist in this
+		-- engine's Lua API. The ATK boost is applied here and the player attacks normally.
+		-- The "force attack / perform damage calculation" clause of the card text cannot be
+		-- reproduced purely in Lua; the boost takes effect and the player declares the attack
+		-- on the same battle step.
 		local e1=Effect.CreateEffect(c)
 		e1:SetType(EFFECT_TYPE_SINGLE)
 		e1:SetCode(EFFECT_SET_ATTACK_FINAL)
 		e1:SetValue(9999999) -- Infinite approximation
 		e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_DAMAGE)
 		c:RegisterEffect(e1)
-
-		-- Force the attack immediately
-		if c10000000.can_attack(c) then
-			local g=Duel.GetMatchingGroup(Card.IsCanBeBattleTarget,tp,0,LOCATION_MZONE,nil,c)
-			if g:GetCount()>0 then
-				Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATTACKTARGET)
-				local tc=g:Select(tp,1,1,nil):GetFirst()
-				Duel.CalculateDamage(c,tc)
-			else
-				Duel.CalculateDamage(c,nil)
-			end
-		end
 	end
 end
 

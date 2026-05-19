@@ -1,4 +1,4 @@
--- The Winged Dragon of Ra (Anime Version)
+-- The Winged Dragon of Ra
 function c10000010.initial_effect(c)
 	-- Requires 3 Tributes to Normal Summon/Set
 	local e1=Effect.CreateEffect(c)
@@ -37,8 +37,13 @@ function c10000010.initial_effect(c)
 	e5:SetCode(EFFECT_CANNOT_CHANGE_CONTROL)
 	c:RegisterEffect(e5)
 
-	-- Unaffected by Spell/Trap effects that would make this card leave the field
-	-- Unaffected by other monsters' effects, except for same/higher Divine Hierarchy (2)
+	-- Unaffected by Spell/Trap effects that would make this card leave the field and
+	-- other monsters' effects, except for monsters with the same or higher Divine Hierarchy.
+	-- Added CATEGORY_TOEXTRA to S/T immunity filter so that effects returning this
+	-- card to the Extra Deck (e.g. De-Fusion when Ra has TYPE_FUSION) are also blocked.
+	-- This replaces the broken dfcon/dfop/dfrepop approach that relied on the nonexistent
+	-- Duel.ChangeChainOperation() API. The LP-gain clause of that interaction cannot be
+	-- reproduced cleanly at the scripting layer and is omitted.
 	local e6=Effect.CreateEffect(c)
 	e6:SetType(EFFECT_TYPE_SINGLE)
 	e6:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
@@ -79,26 +84,36 @@ function c10000010.initial_effect(c)
 	e10:SetOperation(c10000010.resetop)
 	c:RegisterEffect(e10)
 
-	-- ATK/DEF become total ATK/DEF of Tributed monsters
+	-- While face-up on the field, this card is also treated as a Machine monster
 	local e11=Effect.CreateEffect(c)
-	e11:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
-	e11:SetCode(EVENT_SUMMON_SUCCESS)
-	e11:SetOperation(c10000010.atkdefop)
+	e11:SetType(EFFECT_TYPE_SINGLE)
+	e11:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
+	e11:SetRange(LOCATION_MZONE)
+	e11:SetCode(EFFECT_ADD_RACE)
+	e11:SetValue(RACE_MACHINE)
 	c:RegisterEffect(e11)
 
-	-- Special Summoned: unaffected by attack prevention, attacks cannot be negated
+	-- ATK/DEF become total ATK/DEF of Tributed monsters
+	local e12=Effect.CreateEffect(c)
+	e12:SetType(EFFECT_TYPE_SINGLE+EFFECT_TYPE_CONTINUOUS)
+	e12:SetCode(EVENT_SUMMON_SUCCESS)
+	e12:SetOperation(c10000010.atkdefop)
+	c:RegisterEffect(e12)
+
+	-- Special Summoned: unaffected by effects that prevent attacking and attack-negating effects.
+	-- Added EFFECT_FLAG_SINGLE_RANGE + SetRange so the immunity is field-scoped.
+	-- Removed e14 (EFFECT_CANNOT_DISABLE_ATTACK) -- that code does not exist in effect.h
+	-- and would be silently ignored. The atkimmfilter now covers EFFECT_CANNOT_ATTACK,
+	-- EFFECT_CANNOT_ATTACK_ANNOUNCE, and EFFECT_ATTACK_DISABLED, approximating both
+	-- "unaffected by effects that prevent attacking" and "attacks cannot be negated".
 	local e13=Effect.CreateEffect(c)
 	e13:SetType(EFFECT_TYPE_SINGLE)
-	e13:SetCode(EFFECT_IMMUNE_EFFECT)
+	e13:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
 	e13:SetRange(LOCATION_MZONE)
+	e13:SetCode(EFFECT_IMMUNE_EFFECT)
 	e13:SetCondition(c10000010.sscon)
 	e13:SetValue(c10000010.atkimmfilter)
 	c:RegisterEffect(e13)
-	local e14=Effect.CreateEffect(c)
-	e14:SetType(EFFECT_TYPE_SINGLE)
-	e14:SetCode(EFFECT_CANNOT_DISABLE_ATTACK)
-	e14:SetCondition(c10000010.sscon)
-	c:RegisterEffect(e14)
 
 	-- If Special Summoned from GY: Apply 1 of these effects
 	local e15=Effect.CreateEffect(c)
@@ -121,14 +136,20 @@ function c10000010.get_hierarchy(c)
 	return 0 -- Everything else
 end
 
--- Checks if the monster is physically able to declare an attack
+-- Checks if the monster is physically able to declare an attack.
+-- Replaced c:CanAttack() and PHASE_BATTLE_END (undefined constant) with
+-- explicit checks matching the Obelisk/Slifer pattern. PHASE_BATTLE_END is not
+-- defined in effect.h; comparing a number against nil causes a Lua 5.3 runtime
+-- error. PHASE_BATTLE is the correct upper bound.
 function c10000010.can_attack(c)
 	local tp=c:GetControler()
 	if Duel.GetTurnPlayer()~=tp then return false end
 	local ph=Duel.GetCurrentPhase()
-	local is_phase = (ph==PHASE_MAIN1 or ph==PHASE_MAIN2 or (ph>=PHASE_BATTLE_START and ph<=PHASE_BATTLE_END))
+	local is_phase = (ph==PHASE_MAIN1 or (ph>=PHASE_BATTLE_START and ph<=PHASE_BATTLE))
 	if not is_phase then return false end
-	return c:IsFaceup() and c:IsAttackPos() and c:CanAttack()
+	return c:IsFaceup() and c:IsAttackPos()
+		and not c:IsHasEffect(EFFECT_CANNOT_ATTACK)
+		and not c:IsHasEffect(EFFECT_CANNOT_ATTACK_ANNOUNCE)
 end
 
 function c10000010.sumlimit(e,c)
@@ -160,6 +181,10 @@ function c10000010.sumop(e,tp,eg,ep,ev,re,r,rp,c)
 	Duel.Release(g,REASON_SUMMON+REASON_MATERIAL)
 end
 
+-- Added CATEGORY_TOEXTRA to the spell/trap branch so effects that would return
+-- this card to the Extra Deck (such as De-Fusion when Ra has TYPE_FUSION) are covered
+-- by the existing EFFECT_IMMUNE_EFFECT rather than through the broken
+-- Duel.ChangeChainOperation() path (dfcon/dfop/dfrepop), which has been removed.
 function c10000010.efilter(e,te)
 	local c=e:GetHandler()
 	local tc=te:GetHandler()
@@ -168,7 +193,7 @@ function c10000010.efilter(e,te)
 		-- Checks if the S/T effect attempts to make the card leave the field
 		return bit.band(cat,CATEGORY_DESTROY)~=0 or bit.band(cat,CATEGORY_REMOVE)~=0
 			or bit.band(cat,CATEGORY_TOHAND)~=0 or bit.band(cat,CATEGORY_TODECK)~=0
-			or bit.band(cat,CATEGORY_TOGRAVE)~=0
+			or bit.band(cat,CATEGORY_TOGRAVE)~=0 or bit.band(cat,CATEGORY_TOEXTRA)~=0
 	elseif te:IsActiveType(TYPE_MONSTER) then
 		-- Checks if the monster effect comes from a lower hierarchy
 		if not tc then return false end
@@ -292,8 +317,14 @@ function c10000010.sscon(e)
 	return e:GetHandler():IsSummonType(SUMMON_TYPE_SPECIAL)
 end
 
+-- Expanded to cover EFFECT_CANNOT_ATTACK_ANNOUNCE (prevents attack declaration)
+-- and EFFECT_ATTACK_DISABLED (approximates "attacks cannot be negated"), in addition
+-- to the original EFFECT_CANNOT_ATTACK.
 function c10000010.atkimmfilter(e,te)
-	return te:GetCode()==EFFECT_CANNOT_ATTACK
+	local code=te:GetCode()
+	return code==EFFECT_CANNOT_ATTACK
+		or code==EFFECT_CANNOT_ATTACK_ANNOUNCE
+		or code==EFFECT_ATTACK_DISABLED
 end
 
 -- GY Effect Choice
@@ -368,14 +399,11 @@ function c10000010.gyop(e,tp,eg,ep,ev,re,r,rp)
 			e6:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END)
 			c:RegisterEffect(e6)
 
-			local e7=Effect.CreateEffect(c)
-			e7:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
-			e7:SetCode(EVENT_CHAIN_SOLVING)
-			e7:SetRange(LOCATION_MZONE)
-			e7:SetCondition(c10000010.dfcon)
-			e7:SetOperation(c10000010.dfop)
-			e7:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END)
-			c:RegisterEffect(e7)
+			-- Note: The De-Fusion replacement effect (dfcon/dfop/dfrepop) has been removed.
+			-- It relied on the nonexistent Duel.ChangeChainOperation() API, which would
+			-- cause a Lua runtime error when De-Fusion targeted this card. De-Fusion is now
+			-- blocked outright by the IMMUNE_EFFECT (CATEGORY_TOEXTRA in efilter). The LP
+			-- gain clause of that interaction is not reproducible at the scripting layer.
 		end
 	else
 		-- God Phoenix
@@ -479,33 +507,6 @@ function c10000010.tribop(e,tp,eg,ep,ev,re,r,rp)
 		e2:SetCode(EFFECT_UPDATE_DEFENSE)
 		e2:SetValue(def)
 		c:RegisterEffect(e2)
-	end
-end
-
-function c10000010.dfcon(e,tp,eg,ep,ev,re,r,rp)
-	if not re:GetHandler():IsCode(95286165) then return false end
-	local g=Duel.GetChainInfo(ev,CHAININFO_TARGET_CARDS)
-	return g and g:IsContains(e:GetHandler())
-end
-
-function c10000010.dfop(e,tp,eg,ep,ev,re,r,rp)
-	Duel.ChangeChainOperation(ev,c10000010.dfrepop)
-end
-
-function c10000010.dfrepop(e,tp,eg,ep,ev,re,r,rp)
-	local tc=Duel.GetFirstTarget()
-	if tc and tc:IsRelateToEffect(e) and tc:IsFaceup() then
-		local atk=tc:GetAttack()
-		local e1=Effect.CreateEffect(e:GetHandler())
-		e1:SetType(EFFECT_TYPE_SINGLE)
-		e1:SetCode(EFFECT_SET_ATTACK_FINAL)
-		e1:SetValue(0)
-		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
-		tc:RegisterEffect(e1)
-		local e2=e1:Clone()
-		e2:SetCode(EFFECT_SET_DEFENSE_FINAL)
-		tc:RegisterEffect(e2)
-		Duel.Recover(tc:GetControler(),atk,REASON_EFFECT)
 	end
 end
 

@@ -182,7 +182,12 @@ function c10000020.efilter(e,te)
 	return false
 end
 
+-- Added nil guard. Without it, if the engine passes nil as the battled card
+-- (edge case), get_hierarchy(nil) returns 0 and 0 < 1 (Slifer's rank) would be true,
+-- incorrectly triggering battle indestructibility/damage avoidance. Returning false
+-- on nil is the safe, consistent behaviour (matches Obelisk's batfilter).
 function c10000020.batfilter(e,c)
+	if not c then return false end
 	return c10000020.get_hierarchy(c) < c10000020.get_hierarchy(e:GetHandler())
 end
 
