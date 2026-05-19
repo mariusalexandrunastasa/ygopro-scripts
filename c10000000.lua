@@ -259,17 +259,23 @@ function c10000000.infop(e,tp,eg,ep,ev,re,r,rp)
 	local c=e:GetHandler()
 	if c:IsRelateToEffect(e) and c:IsFaceup() then
 		-- Apply Infinity ATK until end of the next Damage Step
-		-- Removed Duel.CalculateDamage() call -- that function does not exist in this
-		-- engine's Lua API. The ATK boost is applied here and the player attacks normally.
-		-- The "force attack / perform damage calculation" clause of the card text cannot be
-		-- reproduced purely in Lua; the boost takes effect and the player declares the attack
-		-- on the same battle step.
 		local e1=Effect.CreateEffect(c)
 		e1:SetType(EFFECT_TYPE_SINGLE)
 		e1:SetCode(EFFECT_SET_ATTACK_FINAL)
 		e1:SetValue(9999999) -- Infinite approximation
 		e1:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_DAMAGE)
 		c:RegisterEffect(e1)
+		-- Force Attack
+		if c10000000.can_attack(c) then
+			local g=Duel.GetMatchingGroup(Card.IsCanBeBattleTarget,tp,0,LOCATION_MZONE,nil,c)
+			if g:GetCount()>0 then
+				Duel.Hint(HINT_SELECTMSG,tp,HINTMSG_ATTACKTARGET)
+				local tc=g:Select(tp,1,1,nil):GetFirst()
+				Duel.CalculateDamage(c,tc)
+			else
+				Duel.CalculateDamage(c,nil)
+			end
+		end
 	end
 end
 

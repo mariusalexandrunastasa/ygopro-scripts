@@ -39,11 +39,6 @@ function c10000010.initial_effect(c)
 
 	-- Unaffected by Spell/Trap effects that would make this card leave the field and
 	-- other monsters' effects, except for monsters with the same or higher Divine Hierarchy.
-	-- Added CATEGORY_TOEXTRA to S/T immunity filter so that effects returning this
-	-- card to the Extra Deck (e.g. De-Fusion when Ra has TYPE_FUSION) are also blocked.
-	-- This replaces the broken dfcon/dfop/dfrepop approach that relied on the nonexistent
-	-- Duel.ChangeChainOperation() API. The LP-gain clause of that interaction cannot be
-	-- reproduced cleanly at the scripting layer and is omitted.
 	local e6=Effect.CreateEffect(c)
 	e6:SetType(EFFECT_TYPE_SINGLE)
 	e6:SetProperty(EFFECT_FLAG_SINGLE_RANGE)
@@ -125,6 +120,14 @@ function c10000010.initial_effect(c)
 	e15:SetTarget(c10000010.gytg)
 	e15:SetOperation(c10000010.gyop)
 	c:RegisterEffect(e15)
+
+	-- De-Fusion
+	local e16=Effect.CreateEffect(c)
+	e16:SetType(EFFECT_TYPE_FIELD+EFFECT_TYPE_CONTINUOUS)
+	e16:SetCode(EVENT_CHAIN_SOLVING)
+	e16:SetRange(LOCATION_MZONE)
+	e16:SetOperation(c10000010.dfop)
+	c:RegisterEffect(e16)
 end
 
 -- Divine Hierarchy System
@@ -181,10 +184,6 @@ function c10000010.sumop(e,tp,eg,ep,ev,re,r,rp,c)
 	Duel.Release(g,REASON_SUMMON+REASON_MATERIAL)
 end
 
--- Added CATEGORY_TOEXTRA to the spell/trap branch so effects that would return
--- this card to the Extra Deck (such as De-Fusion when Ra has TYPE_FUSION) are covered
--- by the existing EFFECT_IMMUNE_EFFECT rather than through the broken
--- Duel.ChangeChainOperation() path (dfcon/dfop/dfrepop), which has been removed.
 function c10000010.efilter(e,te)
 	local c=e:GetHandler()
 	local tc=te:GetHandler()
@@ -193,7 +192,7 @@ function c10000010.efilter(e,te)
 		-- Checks if the S/T effect attempts to make the card leave the field
 		return bit.band(cat,CATEGORY_DESTROY)~=0 or bit.band(cat,CATEGORY_REMOVE)~=0
 			or bit.band(cat,CATEGORY_TOHAND)~=0 or bit.band(cat,CATEGORY_TODECK)~=0
-			or bit.band(cat,CATEGORY_TOGRAVE)~=0 or bit.band(cat,CATEGORY_TOEXTRA)~=0
+			or bit.band(cat,CATEGORY_TOGRAVE)~=0
 	elseif te:IsActiveType(TYPE_MONSTER) then
 		-- Checks if the monster effect comes from a lower hierarchy
 		if not tc then return false end
@@ -398,12 +397,6 @@ function c10000010.gyop(e,tp,eg,ep,ev,re,r,rp)
 			e6:SetOperation(c10000010.tribop)
 			e6:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END)
 			c:RegisterEffect(e6)
-
-			-- Note: The De-Fusion replacement effect (dfcon/dfop/dfrepop) has been removed.
-			-- It relied on the nonexistent Duel.ChangeChainOperation() API, which would
-			-- cause a Lua runtime error when De-Fusion targeted this card. De-Fusion is now
-			-- blocked outright by the IMMUNE_EFFECT (CATEGORY_TOEXTRA in efilter). The LP
-			-- gain clause of that interaction is not reproducible at the scripting layer.
 		end
 	else
 		-- God Phoenix
@@ -445,6 +438,35 @@ function c10000010.gyop(e,tp,eg,ep,ev,re,r,rp)
 		e5:SetOperation(c10000010.gpop)
 		e5:SetReset(RESET_EVENT+RESETS_STANDARD+RESET_PHASE+PHASE_END)
 		c:RegisterEffect(e5)
+	end
+end
+
+-- De-Fusion Catch
+function c10000010.dfop(e,tp,eg,ep,ev,re,r,rp)
+	local c=e:GetHandler()
+	if not re:GetHandler():IsCode(95286165) then return end
+	if not re:IsHasProperty(EFFECT_FLAG_CARD_TARGET) then return end
+	local g=Duel.GetChainInfo(ev,CHAININFO_TARGET_CARDS)
+	if g and g:IsContains(c) then
+		Duel.ChangeChainOperation(ev,c10000010.dfrepop)
+	end
+end
+
+function c10000010.dfrepop(e,tp,eg,ep,ev,re,r,rp)
+	local tc=Duel.GetFirstTarget()
+	if tc and tc:IsRelateToEffect(e) and tc:IsFaceup() then
+		local atk=tc:GetAttack()
+		tc:ResetEffect(RESET_DISABLE,RESET_EVENT)
+		local e1=Effect.CreateEffect(e:GetHandler())
+		e1:SetType(EFFECT_TYPE_SINGLE)
+		e1:SetCode(EFFECT_SET_ATTACK_FINAL)
+		e1:SetValue(0)
+		e1:SetReset(RESET_EVENT+RESETS_STANDARD)
+		tc:RegisterEffect(e1)
+		local e2=e1:Clone()
+		e2:SetCode(EFFECT_SET_DEFENSE_FINAL)
+		tc:RegisterEffect(e2)
+		Duel.Recover(tc:GetControler(),atk,REASON_EFFECT)
 	end
 end
 
