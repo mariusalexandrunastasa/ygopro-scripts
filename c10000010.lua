@@ -333,7 +333,7 @@ end
 
 function c10000010.gytg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end
-	local op=Duel.SelectOption(tp,aux.Stringid(10000010,2),aux.Stringid(10000010,3))
+	local op=Duel.SelectOption(tp,aux.Stringid(10000010,1),aux.Stringid(10000010,2))
 	e:SetLabel(op)
 end
 
