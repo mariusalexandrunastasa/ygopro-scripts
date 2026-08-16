@@ -25,7 +25,7 @@ function s.initial_effect(c)
 	--spsummon
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(id,1))
-	e2:SetCategory(CATEGORY_SPECIAL_SUMMON)
+	e2:SetCategory(CATEGORY_SPECIAL_SUMMON+CATEGORY_MSET)
 	e2:SetType(EFFECT_TYPE_IGNITION)
 	e2:SetRange(LOCATION_HAND)
 	e2:SetCost(s.spcost)
@@ -55,6 +55,9 @@ function s.initial_effect(c)
 	c:RegisterEffect(e4)
 	Duel.AddCustomActivityCounter(id,ACTIVITY_SPSUMMON,s.counterfilter)
 end
+s.mentioned_counter={
+	[0x71]=true,
+}
 function s.counterfilter(c)
 	return c:IsFacedown()
 end

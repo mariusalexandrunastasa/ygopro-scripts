@@ -14,17 +14,21 @@ function c44640691.initial_effect(c)
 	local e2=e1:Clone()
 	e2:SetCode(EVENT_SPSUMMON_SUCCESS)
 	c:RegisterEffect(e2)
-	--destroy
+	--sset
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(44640691,1))
 	e3:SetType(EFFECT_TYPE_IGNITION)
 	e3:SetRange(LOCATION_MZONE)
+	e3:SetCategory(CATEGORY_SSET)
 	e3:SetCountLimit(1,44640692)
 	e3:SetCost(c44640691.setcost)
 	e3:SetTarget(c44640691.settg)
 	e3:SetOperation(c44640691.setop)
 	c:RegisterEffect(e3)
 end
+c44640691.mentioned_counter={
+	[0x1]=true,
+}
 function c44640691.addct(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end
 	Duel.SetOperationInfo(0,CATEGORY_COUNTER,nil,1,0,0x1)

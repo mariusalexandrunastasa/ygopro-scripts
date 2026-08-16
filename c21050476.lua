@@ -28,6 +28,7 @@ function s.initial_effect(c)
 	--set
 	local e4=Effect.CreateEffect(c)
 	e4:SetDescription(aux.Stringid(id,2))
+	e4:SetCategory(CATEGORY_SSET)
 	e4:SetType(EFFECT_TYPE_IGNITION)
 	e4:SetRange(LOCATION_MZONE)
 	e4:SetCountLimit(1,id+o)
@@ -62,7 +63,7 @@ function s.spop(e,tp,eg,ep,ev,re,r,rp)
 	if rg and rg:GetCount()>0 then
 		Duel.HintSelection(rg)
 		if Duel.SendtoHand(rg,nil,REASON_EFFECT)~=0 and rg:FilterCount(Card.IsLocation,nil,LOCATION_HAND)>0
-			and c:IsCanBeSpecialSummoned(e,0,tp,false,false) then
+			and c:IsRelateToChain() and c:IsCanBeSpecialSummoned(e,0,tp,false,false) then
 			Duel.SpecialSummon(e:GetHandler(),0,tp,tp,false,false,POS_FACEUP)
 		end
 	end

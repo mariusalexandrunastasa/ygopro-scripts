@@ -16,6 +16,7 @@ function c96367119.initial_effect(c)
 	--set
 	local e2=Effect.CreateEffect(c)
 	e2:SetDescription(aux.Stringid(96367119,1))
+	e2:SetCategory(CATEGORY_SSET)
 	e2:SetType(EFFECT_TYPE_QUICK_O)
 	e2:SetRange(LOCATION_GRAVE)
 	e2:SetCode(EVENT_FREE_CHAIN)
@@ -25,6 +26,9 @@ function c96367119.initial_effect(c)
 	e2:SetOperation(c96367119.setop)
 	c:RegisterEffect(e2)
 end
+c96367119.mentioned_counter={
+	[0x10]=true,
+}
 function c96367119.discon(e,tp,eg,ep,ev,re,r,rp)
 	return re:IsHasType(EFFECT_TYPE_ACTIVATE) and Duel.IsChainNegatable(ev)
 end

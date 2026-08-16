@@ -27,6 +27,7 @@ function c43930492.initial_effect(c)
 	local e3=Effect.CreateEffect(c)
 	e3:SetDescription(aux.Stringid(43930492,0))
 	e3:SetType(EFFECT_TYPE_IGNITION)
+	e3:SetCategory(CATEGORY_SSET)
 	e3:SetProperty(EFFECT_FLAG_CARD_TARGET)
 	e3:SetRange(LOCATION_MZONE)
 	e3:SetCountLimit(1,43930492)
@@ -35,6 +36,9 @@ function c43930492.initial_effect(c)
 	e3:SetOperation(c43930492.setop)
 	c:RegisterEffect(e3)
 end
+c43930492.mentioned_counter={
+	[0x1]=true,
+}
 function c43930492.acop(e,tp,eg,ep,ev,re,r,rp)
 	if re:IsHasType(EFFECT_TYPE_ACTIVATE) and re:IsActiveType(TYPE_SPELL) and e:GetHandler():GetFlagEffect(FLAG_ID_CHAINING)>0 then
 		e:GetHandler():AddCounter(0x1,1)

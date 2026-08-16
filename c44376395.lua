@@ -1,4 +1,4 @@
---ASHLAN U1000
+--ASHLAN－U１０００型
 local s,id,o=GetID()
 function s.initial_effect(c)
 	--Link Summon
@@ -56,6 +56,7 @@ function s.thcost(e,tp,eg,ep,ev,re,r,rp,chk)
 	local tc=Duel.SelectMatchingCard(tp,s.costfilter,tp,LOCATION_HAND,0,1,1,nil,tp):GetFirst()
 	e:SetLabel(tc:GetRace(),tc:GetAttribute())
 	Duel.ConfirmCards(1-tp,tc)
+	Duel.ShuffleHand(tp)
 end
 function s.thtg(e,tp,eg,ep,ev,re,r,rp,chk)
 	if chk==0 then return true end
